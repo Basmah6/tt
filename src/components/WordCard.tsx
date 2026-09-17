@@ -1,11 +1,14 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { 
   X, Volume2, Sparkles, CheckCircle, HelpCircle, 
-  Lightbulb, ArrowRightLeft, BookOpen, AlertCircle, Info
+  Lightbulb, ArrowRightLeft, BookOpen, AlertCircle, Info,
+  Split, GitCommit, Layers
 } from "lucide-react";
 import { Word, AIExplanation } from "../types";
 import { getLocalWordExplanation } from "../data/wordExplanations";
-import { getSpokenText } from "../utils/speechUtils";
+import { getSpokenText, speakFemaleEnglish } from "../utils/speechUtils";
+import { getVerbConjugation } from "../data/verbConjugations";
+import { getCourseSynonyms, getCourseAntonyms } from "../data/courseThesaurus";
 
 interface WordCardProps {
   word: Word;
@@ -27,6 +30,19 @@ export default function WordCard({
   const [error, setError] = useState<string | null>(null);
   const [speechSupported, setSpeechSupported] = useState(true);
 
+  // Memoized Verb Conjugations & Course Synonyms/Antonyms
+  const conjugation = useMemo(
+    () => getVerbConjugation(word.word, word.partOfSpeech),
+    [word.word, word.partOfSpeech]
+  );
+  const synonyms = useMemo(() => getCourseSynonyms(word.word), [word.word]);
+  const antonyms = useMemo(() => getCourseAntonyms(word.word), [word.word]);
+
+  const speakText = (text: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    speakFemaleEnglish(text, 0.85);
+  };
+
   // Check if browser SpeechSynthesis is available
   useEffect(() => {
     if (!window.speechSynthesis) {
@@ -40,23 +56,7 @@ export default function WordCard({
   // Handle native speech synthesis pronunciation
   const handlePronounce = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!window.speechSynthesis) return;
-
-    // Cancel currently speaking
-    window.speechSynthesis.cancel();
-
-    const utterance = new SpeechSynthesisUtterance(getSpokenText(word.word));
-    utterance.lang = "en-US";
-    utterance.rate = 0.85; // Slightly slower for clear beginner study
-    
-    // Attempt to pick a nice English voice
-    const voices = window.speechSynthesis.getVoices();
-    const englishVoice = voices.find(v => v.lang.startsWith("en-US") || v.lang.startsWith("en-GB"));
-    if (englishVoice) {
-      utterance.voice = englishVoice;
-    }
-
-    window.speechSynthesis.speak(utterance);
+    speakFemaleEnglish(word.word, 0.85);
   };
 
   // Fetch detailed insights and mnemonics from local knowledge base
@@ -141,6 +141,178 @@ export default function WordCard({
               </p>
             </div>
           </div>
+
+          {/* Verb Conjugation Section */}
+          {conjugation && (
+            <div className="bg-white border border-blue-100 rounded-2xl p-5 space-y-4 shadow-xs">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-brand-blue font-black text-sm font-sans">
+                  <ArrowRightLeft className="w-4 h-4 text-brand-orange" />
+                  <span>تصريف الأفعال (Verb Conjugations)</span>
+                </div>
+                <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full font-sans ${
+                  conjugation.isIrregular 
+                    ? "bg-amber-100 text-amber-800 border border-amber-200" 
+                    : "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                }`}>
+                  {conjugation.isIrregular ? "فعل غير منتظم (شاذ)" : "فعل منتظم"}
+                </span>
+              </div>
+
+              {/* Conjugation Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                {/* V1 */}
+                <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 text-center space-y-1">
+                  <span className="text-[10px] font-bold text-slate-400 block font-sans">المضارع / المصدر (V1)</span>
+                  <div className="flex items-center justify-center gap-1">
+                    <span className="text-base font-black text-slate-900 font-english">{conjugation.base}</span>
+                    <button 
+                      onClick={(e) => speakText(conjugation.base, e)}
+                      className="text-slate-400 hover:text-brand-blue transition-colors cursor-pointer"
+                      title="استمع"
+                    >
+                      <Volume2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  <span className="text-[10px] text-slate-500 font-sans block">مع He/She/It: {conjugation.thirdPerson}</span>
+                </div>
+
+                {/* V2 */}
+                <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 text-center space-y-1">
+                  <span className="text-[10px] font-bold text-slate-400 block font-sans">الماضي البسيط (V2)</span>
+                  <div className="flex items-center justify-center gap-1">
+                    <span className="text-base font-black text-brand-blue font-english">{conjugation.past}</span>
+                    <button 
+                      onClick={(e) => speakText(conjugation.past, e)}
+                      className="text-slate-400 hover:text-brand-blue transition-colors cursor-pointer"
+                      title="استمع"
+                    >
+                      <Volume2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  <span className="text-[10px] text-slate-500 font-sans block">Past Simple</span>
+                </div>
+
+                {/* V3 */}
+                <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 text-center space-y-1">
+                  <span className="text-[10px] font-bold text-slate-400 block font-sans">التصريف الثالث (V3)</span>
+                  <div className="flex items-center justify-center gap-1">
+                    <span className="text-base font-black text-brand-blue font-english">{conjugation.pastParticiple}</span>
+                    <button 
+                      onClick={(e) => speakText(conjugation.pastParticiple, e)}
+                      className="text-slate-400 hover:text-brand-blue transition-colors cursor-pointer"
+                      title="استمع"
+                    >
+                      <Volume2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  <span className="text-[10px] text-slate-500 font-sans block">Past Participle</span>
+                </div>
+
+                {/* -ing */}
+                <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 text-center space-y-1">
+                  <span className="text-[10px] font-bold text-slate-400 block font-sans">صيغة الاستمرار (-ing)</span>
+                  <div className="flex items-center justify-center gap-1">
+                    <span className="text-base font-black text-slate-900 font-english">{conjugation.presentParticiple}</span>
+                    <button 
+                      onClick={(e) => speakText(conjugation.presentParticiple, e)}
+                      className="text-slate-400 hover:text-brand-blue transition-colors cursor-pointer"
+                      title="استمع"
+                    >
+                      <Volume2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  <span className="text-[10px] text-slate-500 font-sans block">Continuous</span>
+                </div>
+              </div>
+
+              {conjugation.tip && (
+                <p className="text-xs font-bold text-slate-600 font-sans bg-blue-50/50 p-2.5 rounded-xl border border-blue-100/50 leading-relaxed">
+                  💡 {conjugation.tip}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Synonyms & Antonyms within Course Curriculum */}
+          {(synonyms.length > 0 || antonyms.length > 0) && (
+            <div className="bg-white border border-slate-100 rounded-2xl p-5 space-y-4 shadow-xs">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2 text-slate-800 font-black text-sm font-sans">
+                  <Layers className="w-4 h-4 text-brand-orange" />
+                  <span>المترادفات والمضادات المستهدفة بحدود الدورة (3000 كلمة)</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Synonyms */}
+                <div className="space-y-2">
+                  <span className="text-xs font-extrabold text-emerald-800 bg-emerald-50 border border-emerald-100 px-3 py-1 rounded-lg inline-flex items-center gap-1 font-sans">
+                    <span>مترادفات (Synonyms):</span>
+                    <span className="text-[10px] font-bold">({synonyms.length})</span>
+                  </span>
+
+                  {synonyms.length > 0 ? (
+                    <div className="space-y-2 pt-1">
+                      {synonyms.map((s, idx) => (
+                        <div 
+                          key={idx}
+                          className="flex items-center justify-between p-2.5 bg-emerald-50/40 border border-emerald-100/60 rounded-xl"
+                        >
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={(e) => speakText(s.word, e)}
+                              className="p-1.5 rounded-lg bg-white text-emerald-700 hover:bg-emerald-100 transition-colors shadow-2xs cursor-pointer"
+                              title={`استمع لنطق ${s.word}`}
+                            >
+                              <Volume2 className="w-3.5 h-3.5" />
+                            </button>
+                            <span className="font-english font-black text-sm text-slate-900">{s.word}</span>
+                          </div>
+                          <span className="text-xs font-bold text-slate-600 font-sans">{s.arabic}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-400 font-sans py-2">لا يوجد مرادف مباشر مسجل ضمن الـ 3000 كلمة.</p>
+                  )}
+                </div>
+
+                {/* Antonyms */}
+                <div className="space-y-2">
+                  <span className="text-xs font-extrabold text-rose-800 bg-rose-50 border border-rose-100 px-3 py-1 rounded-lg inline-flex items-center gap-1 font-sans">
+                    <span>مضادات (Antonyms):</span>
+                    <span className="text-[10px] font-bold">({antonyms.length})</span>
+                  </span>
+
+                  {antonyms.length > 0 ? (
+                    <div className="space-y-2 pt-1">
+                      {antonyms.map((a, idx) => (
+                        <div 
+                          key={idx}
+                          className="flex items-center justify-between p-2.5 bg-rose-50/40 border border-rose-100/60 rounded-xl"
+                        >
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={(e) => speakText(a.word, e)}
+                              className="p-1.5 rounded-lg bg-white text-rose-700 hover:bg-rose-100 transition-colors shadow-2xs cursor-pointer"
+                              title={`استمع لنطق ${a.word}`}
+                            >
+                              <Volume2 className="w-3.5 h-3.5" />
+                            </button>
+                            <span className="font-english font-black text-sm text-slate-900">{a.word}</span>
+                          </div>
+                          <span className="text-xs font-bold text-slate-600 font-sans">{a.arabic}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-400 font-sans py-2">لا يوجد مضاد مباشر مسجل ضمن الـ 3000 كلمة.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Dynamic AI Explanation Block */}
           <div className="space-y-4">

@@ -60,9 +60,13 @@ const IRREGULAR_VERB_MAP: Record<string, string[]> = {
 
 /**
  * Generates an English matching RegExp for a target word including standard inflections.
+ * Safely strips punctuation from target (e.g. 'Mr.' -> 'mr', 'Hello!' -> 'hello') and uses
+ * character boundaries so words adjacent to punctuation (. , ! ? : ; " ' ( ) [ ]) are highlighted.
  */
 function getEnglishRegex(target: string): RegExp | null {
-  const clean = target.replace(/\(.*?\)/g, '').replace(/\[.*?\]/g, '').trim().toLowerCase();
+  // Remove parenthetical content, brackets, and trim leading/trailing punctuation/spaces
+  let clean = target.replace(/\(.*?\)/g, '').replace(/\[.*?\]/g, '');
+  clean = clean.replace(/^[\s\p{P}\p{S}«»""''،؛؟…—–\-]+|[\s\p{P}\p{S}«»""''،؛؟…—–\-]+$/gu, '').trim().toLowerCase();
   if (!clean) return null;
 
   const forms = new Set<string>();
@@ -73,15 +77,22 @@ function getEnglishRegex(target: string): RegExp | null {
     }
   }
 
+  // Titles like mr, mrs, ms should not receive regular verb/noun inflections like -ed or -ing
+  const isTitle = clean === 'mr' || clean === 'ms' || clean === 'mrs';
+
   const parts = Array.from(forms).map(form => {
     if (form.includes(' ')) {
       return form.split(/\s+/).map(escapeRegex).join('\\s+');
+    } else if (isTitle) {
+      return escapeRegex(form);
     } else {
       return `${escapeRegex(form)}(?:s|es|ed|ing|d)?`;
     }
   });
 
-  return new RegExp(`\\b(${parts.join('|')})\\b`, 'gi');
+  // Use lookarounds for alphanumeric boundaries so that any punctuation (. , ! ? : ; " ' ( ) [ ])
+  // or string edge correctly matches the word without requiring whitespace
+  return new RegExp(`(?<![a-zA-Z0-9])(${parts.join('|')})(?![a-zA-Z0-9])`, 'gi');
 }
 
 /**

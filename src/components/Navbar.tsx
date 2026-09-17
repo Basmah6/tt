@@ -30,8 +30,8 @@ export default function Navbar({
 
   return (
     <header id="app-header" className="sticky top-0 z-50 bg-white border-b border-slate-100 shadow-xs">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 overflow-x-auto">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between py-4 gap-4">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between py-3.5 sm:py-4 gap-3 sm:gap-4">
           
           {/* Brand Logo Section */}
           <div className="flex items-center justify-between">
@@ -93,21 +93,21 @@ export default function Navbar({
               </div>
             </div>
 
-            {/* Quick Stats & Reset on Mobile */}
-            <div className="flex items-center gap-2 md:hidden">
+            {/* Quick Stats & Reset on Mobile & Small Screens */}
+            <div className="flex items-center gap-1.5 sm:gap-2 lg:hidden">
               <button
                 id="btn-reset-course-mobile"
                 onClick={() => setShowResetConfirm(true)}
-                title="إعادة بدء الدورة"
+                title="إعادة بدء الدورة وتصفير التقدم"
                 className="flex items-center justify-center w-8 h-8 rounded-lg bg-red-500 hover:bg-red-600 text-white shadow-xs transition-all cursor-pointer"
               >
                 <RotateCcw className="w-4 h-4" />
               </button>
-              <div className="flex items-center gap-1 bg-amber-50 text-brand-orange px-2 py-1 rounded-lg text-xs font-bold">
+              <div className="flex items-center gap-1 bg-amber-50 border border-amber-100/60 text-brand-orange px-2 py-1 rounded-lg text-xs font-bold">
                 <Flame className="w-4 h-4 fill-brand-orange" />
                 <span>{streak}</span>
               </div>
-              <div className="flex items-center gap-1 bg-blue-50 text-brand-blue px-2 py-1 rounded-lg text-xs font-bold">
+              <div className="flex items-center gap-1 bg-blue-50 border border-blue-100/60 text-brand-blue px-2 py-1 rounded-lg text-xs font-bold">
                 <Award className="w-4 h-4" />
                 <span>{xp} XP</span>
               </div>
@@ -115,11 +115,14 @@ export default function Navbar({
           </div>
 
           {/* Navigation Tabs */}
-          <nav className="flex items-center bg-slate-50 p-1.5 rounded-xl border border-slate-100 gap-1 overflow-x-auto">
+          <nav 
+            id="main-nav-tabs"
+            className="flex items-center bg-slate-50 p-1.5 rounded-xl border border-slate-100 gap-1 overflow-x-auto"
+          >
             <button
               id="tab-course-map"
               onClick={() => setCurrentTab("course")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-sans text-sm font-bold transition-all whitespace-nowrap ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-sans text-sm font-bold transition-all whitespace-nowrap cursor-pointer ${
                 currentTab === "course"
                   ? "bg-brand-blue text-white shadow-lg shadow-brand-blue/20"
                   : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
@@ -132,7 +135,7 @@ export default function Navbar({
             <button
               id="tab-story-builder"
               onClick={() => setCurrentTab("story")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-sans text-sm font-bold transition-all whitespace-nowrap ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-sans text-sm font-bold transition-all whitespace-nowrap cursor-pointer ${
                 currentTab === "story"
                   ? "bg-brand-blue text-white shadow-lg shadow-brand-blue/20"
                   : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
@@ -145,7 +148,7 @@ export default function Navbar({
             <button
               id="tab-ai-chat"
               onClick={() => setCurrentTab("chat")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-sans text-sm font-bold transition-all whitespace-nowrap ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-sans text-sm font-bold transition-all whitespace-nowrap cursor-pointer ${
                 currentTab === "chat"
                   ? "bg-brand-blue text-white shadow-lg shadow-brand-blue/20"
                   : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
@@ -156,8 +159,30 @@ export default function Navbar({
             </button>
           </nav>
 
+          {/* Mobile & Small Screens Overall Progress */}
+          <div id="mobile-overall-progress" className="lg:hidden w-full bg-slate-50/90 border border-slate-100 rounded-2xl p-3 space-y-2">
+            <div className="flex items-center justify-between text-xs font-bold font-sans">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-brand-orange animate-pulse" />
+                <span className="text-slate-900 font-black">التقدم العام</span>
+                <span className="text-[11px] text-slate-500 font-medium">
+                  ({masteredCount} من {totalWords} كلمة متقنة)
+                </span>
+              </div>
+              <span className="bg-brand-orange/10 text-brand-orange px-2.5 py-0.5 rounded-full text-xs font-black font-sans">
+                {percentage}%
+              </span>
+            </div>
+            <div className="w-full bg-slate-200/80 h-2.5 rounded-full overflow-hidden">
+              <div
+                className="bg-brand-orange h-full rounded-full transition-all duration-500 shadow-xs"
+                style={{ width: `${percentage}%` }}
+              />
+            </div>
+          </div>
+
           {/* Dashboard Metrics Panel (Desktop) */}
-          <div className="hidden md:flex items-center gap-4">
+          <div className="hidden lg:flex items-center gap-4 shrink-0">
             {/* Streak Tracker */}
             <div className="flex items-center gap-3 bg-amber-50/50 border border-amber-100 px-3.5 py-2 rounded-2xl">
               <div className="w-9 h-9 rounded-xl bg-amber-50 flex items-center justify-center text-brand-orange animate-pulse">
@@ -181,7 +206,7 @@ export default function Navbar({
             </div>
 
             {/* Total Mastery Progress */}
-            <div className="flex flex-col w-28">
+            <div id="desktop-overall-progress" className="flex flex-col w-28">
               <div className="flex justify-between items-center text-xs font-bold text-slate-500 mb-1">
                 <span>التقدم العام</span>
                 <span>{percentage}%</span>

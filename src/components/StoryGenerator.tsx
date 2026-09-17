@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { Word, Category, SingleWordStory } from "../types";
 import { generateLocalStories } from "../data/stories";
-import { getSpokenText } from "../utils/speechUtils";
+import { getSpokenText, speakFemaleEnglish } from "../utils/speechUtils";
 import { searchAndRankWords } from "../utils/searchUtils";
 import { highlightStoryEnglish, highlightStoryArabic } from "../utils/storyHighlightUtils";
 import { 
@@ -88,20 +88,9 @@ export default function StoryGenerator({
     }
   };
 
-  // Text-to-speech helper
+  // Text-to-speech helper with natural female English voice
   const handlePlayVoice = (text: string) => {
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(getSpokenText(text));
-      utterance.lang = 'en-US';
-      utterance.rate = 0.88; // Comfortable slow rate for A1 learners
-      const voices = window.speechSynthesis.getVoices();
-      const englishVoice = voices.find(v => v.lang.startsWith("en-US") || v.lang.startsWith("en-GB"));
-      if (englishVoice) {
-        utterance.voice = englishVoice;
-      }
-      window.speechSynthesis.speak(utterance);
-    }
+    speakFemaleEnglish(text, 0.88);
   };
 
   const availableWords = useMemo(() => {

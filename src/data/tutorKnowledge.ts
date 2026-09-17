@@ -1,5 +1,7 @@
 import { categories } from "./words";
-import { Word } from "../types";
+import { Word, VerbConjugation, RelatedCourseWord } from "../types";
+import { getVerbConjugation, formatVerbConjugationText } from "./verbConjugations";
+import { getCourseSynonyms, getCourseAntonyms, formatThesaurusText } from "./courseThesaurus";
 
 /**
  * Normalizes Arabic text to handle spelling variations:
@@ -67,6 +69,7 @@ export function formatPartOfSpeech(pos?: string): string {
 
 /**
  * Formats a single word educational card cleanly.
+ * Includes verb conjugations (if verb) and targeted synonyms/antonyms within course limits.
  * Strictly no # or * symbols.
  */
 export function formatWordCard(w: Word, prefixTitle?: string): string {
@@ -76,12 +79,33 @@ export function formatWordCard(w: Word, prefixTitle?: string): string {
     `الكلمة بالإنجليزية: ${w.word}`,
     `المعنى بالعربية: ${w.arabic}`,
     `طريقة النطق: ${w.pronunciation || "غير متوفر"}`,
-    `نوع الكلمة: ${formatPartOfSpeech(w.partOfSpeech)}`,
-    "",
-    "مثال توضيحي:",
-    w.example,
-    `الترجمة: ${w.exampleArabic}`
+    `نوع الكلمة: ${formatPartOfSpeech(w.partOfSpeech)}`
   ];
+
+  // 1. Verb conjugations if it is a verb or has conjugations
+  const conj = getVerbConjugation(w.word, w.partOfSpeech);
+  if (conj) {
+    lines.push("");
+    lines.push(formatVerbConjugationText(conj));
+  }
+
+  // 2. Synonyms and antonyms targeted strictly within the course curriculum
+  const syns = getCourseSynonyms(w.word);
+  const ants = getCourseAntonyms(w.word);
+  if (syns.length > 0 || ants.length > 0) {
+    const thesaurusText = formatThesaurusText(syns, ants);
+    if (thesaurusText) {
+      lines.push("");
+      lines.push(thesaurusText);
+    }
+  }
+
+  // 3. Example Sentence
+  lines.push("");
+  lines.push("مثال توضيحي:");
+  lines.push(w.example);
+  lines.push(`الترجمة: ${w.exampleArabic}`);
+
   return lines.join("\n");
 }
 
@@ -90,16 +114,17 @@ const allWordsList: Word[] = categories.flatMap(c => c.words);
 
 /**
  * Extracts the core search term from user questions.
- * Handles patterns like "ما معنى سيارة", "كيف اقول قطة بالانجليزي", "meaning of car"
+ * Handles patterns like "ما معنى سيارة", "كيف اقول قطة بالانجليزي", "meaning of car",
+ * as well as "تصريف write", "ما مضاد happy", "مرادف start".
  */
-function extractSearchTerm(rawInput: string): string {
+export function extractSearchTerm(rawInput: string): string {
   let cleaned = rawInput.trim();
   // Remove wrapping quotes
   cleaned = cleaned.replace(/^["'«»“”‘’]+|["'«»“”‘’]+$/g, "").trim();
 
   // Remove common Arabic inquiry prefixes
   cleaned = cleaned.replace(
-    /^(ما هو معنى كلمة|ما هي كلمة|ما معنى كلمة|ما معنى|ما معني كلمة|ما معني|معنى كلمة|معنى|معني كلمة|معني|ماذا تعني كلمة|ماذا تعني|كيف اقول كلمة|كيف اقول|كيف أقول كلمة|كيف أقول|كيف نقول كلمة|كيف نقول|كيف اكتب|كيف أكتب|شرح كلمة|شرح|ترجمة كلمة|ترجمة|بحث عن كلمة|بحث عن|اريد كلمة|أريد كلمة)\s+/i,
+    /^(ما هو معنى كلمة|ما هي كلمة|ما معنى كلمة|ما معنى|ما معني كلمة|ما معني|معنى كلمة|معنى|معني كلمة|معني|ماذا تعني كلمة|ماذا تعني|كيف اقول كلمة|كيف اقول|كيف أقول كلمة|كيف أقول|كيف نقول كلمة|كيف نقول|كيف اكتب|كيف أكتب|شرح كلمة|شرح|ترجمة كلمة|ترجمة|بحث عن كلمة|بحث عن|اريد كلمة|أريد كلمة|ما هو تصريف الفعل|ما تصريف الفعل|ما هو تصريف كلمة|ما هو تصريف|ما تصريف كلمة|ما تصريف|تصريف الفعل|تصريف كلمة|تصريف|ما هو مضاد كلمة|ما هو مضاد|ما مضاد كلمة|ما مضاد|مضاد كلمة|مضاد|عكس كلمة|عكس|ما هو عكس كلمة|ما هو عكس|ما عكس كلمة|ما عكس|مرادف كلمة|مرادف|مرادفات كلمة|مرادفات|ما هو مرادف كلمة|ما هو مرادف|ما مرادف كلمة|ما مرادف|مترادفات كلمة|مترادفات)\s+/i,
     ""
   );
 
@@ -111,12 +136,12 @@ function extractSearchTerm(rawInput: string): string {
 
   // Remove common English inquiry prefixes
   cleaned = cleaned.replace(
-    /^(what is the meaning of|what does|meaning of|definition of|how do you say|how to say|how do i say|translate)\s+/i,
+    /^(what is the meaning of|what does|meaning of|definition of|how do you say|how to say|how do i say|translate|conjugation of|conjugate|antonym of|opposite of|synonym of|synonyms of)\s+/i,
     ""
   );
 
   // Remove common English inquiry suffixes
-  cleaned = cleaned.replace(/\s+(mean|in english|in arabic)$/i, "");
+  cleaned = cleaned.replace(/\s+(mean|in english|in arabic|conjugation|antonym|opposite|synonym|synonyms)$/i, "");
 
   return cleaned.trim();
 }
@@ -128,7 +153,7 @@ function extractSearchTerm(rawInput: string): string {
  * 2. Exact Arabic match (against full text or slash-divided components, e.g. "طبيب / دكتور")
  * 3. Starts-with or Substring match
  */
-function findWordInLocalData(query: string): Word | null {
+export function findWordInLocalData(query: string): Word | null {
   const term = extractSearchTerm(query);
   if (!term) return null;
 
@@ -268,25 +293,37 @@ function handleGoldenAdvice(): string {
   ].join("\n");
 }
 
-/**
- * 100% Local Tutor Response Generator.
- * Completely offline, zero AI, zero API, zero network requests.
- * All output strings are strictly plain text without any # or * symbols.
- */
-export function getLocalTutorResponse(userMessage: string): string {
-  const trimmed = userMessage.trim();
-  const lowerText = trimmed.toLowerCase();
-  const normAr = normalizeArabicText(trimmed);
+export interface TutorResponseData {
+  text: string;
+  matchedWord?: Word;
+  conjugation?: VerbConjugation | null;
+  synonyms?: RelatedCourseWord[];
+  antonyms?: RelatedCourseWord[];
+}
 
-  // 1. Common request: "كيف اقول سعيد وحزين بالانجليزي؟"
+/**
+ * Main query router with structured return data.
+ */
+export function getLocalTutorResponseWithData(userMessage: string): TutorResponseData {
+  if (!userMessage || userMessage.trim() === "") {
+    return {
+      text: "يرجى كتابة كلمة أو سؤال تعليمي للبدء."
+    };
+  }
+
+  const rawTrimmed = userMessage.trim();
+  const lowerText = rawTrimmed.toLowerCase();
+  const normAr = normalizeArabicText(rawTrimmed);
+
+  // 1. Pre-built query: "كيف اقول سعيد وحزين بالانجليزي؟"
   const isHappySadRequest =
     (normAr.includes("سعيد") && normAr.includes("حزين")) ||
     (lowerText.includes("happy") && lowerText.includes("sad"));
   if (isHappySadRequest) {
-    return handleHappyAndSad();
+    return { text: handleHappyAndSad() };
   }
 
-  // 2. Common request: "علمني 3 كلمات جديدة في مستوى A1"
+  // 2. Pre-built query: "علمني 3 كلمات جديدة في مستوى A1"
   const isTeachWordsRequest =
     normAr.includes("علمني") ||
     normAr.includes("كلمات جديده") ||
@@ -295,7 +332,7 @@ export function getLocalTutorResponse(userMessage: string): string {
     /teach.*words/i.test(lowerText) ||
     /words.*a1/i.test(lowerText);
   if (isTeachWordsRequest) {
-    return handleTeach3Words();
+    return { text: handleTeach3Words() };
   }
 
   // 3. Common request: "اعطني نصيحة ذهبية لحفظ كلمات الانجليزية بسهولة"
@@ -308,41 +345,142 @@ export function getLocalTutorResponse(userMessage: string): string {
     normAr.includes("حفظ الكلمات") ||
     /advice|memorize|tips/i.test(lowerText);
   if (isAdviceRequest) {
-    return handleGoldenAdvice();
+    return { text: handleGoldenAdvice() };
   }
 
   // 4. "من أنت" / Who are you
   if (/(من انت|ماذا تفعل|عرفني بنفسك)/i.test(normAr) || /who are you/i.test(lowerText)) {
-    return [
-      "أنا معلم إتقان التعليمي المحلي.",
-      "مهمتي هي مساعدتك على استعراض وفهم مفردات دورة إتقان (3000 كلمة).",
-      "يمكنك كتابة أي كلمة بالعربية أو الإنجليزية لمعرفة معناها ونطقها ونوعها ومثال عملي مترجم عليها، أو طلب نصائح للحفظ وكلمات جديدة."
-    ].join("\n");
+    return {
+      text: [
+        "أنا معلم إتقان التعليمي المحلي.",
+        "مهمتي هي مساعدتك على استعراض وفهم مفردات دورة إتقان (3000 كلمة).",
+        "يمكنك كتابة أي كلمة بالعربية أو الإنجليزية لمعرفة معناها ونطقها ونوعها وتصريفها (للأفعال) ومترادفاتها ومضاداتها ضمن الدورة ومثال عملي مترجم عليها."
+      ].join("\n")
+    };
   }
 
   // 5. Formal greetings like "السلام عليكم"
   if (normAr.startsWith("السلام عليكم")) {
-    return [
-      "وعليكم السلام ورحمة الله وبركاته.",
-      "أهلاً بك في معلم إتقان المحلي.",
-      "اكتب أي كلمة بالعربية أو الإنجليزية وسأعرض لك بطاقتها التعليمية الكاملة مع النطق والنوع والمثال المترجم."
-    ].join("\n");
+    return {
+      text: [
+        "وعليكم السلام ورحمة الله وبركاته.",
+        "أهلاً بك في معلم إتقان المحلي.",
+        "اكتب أي كلمة بالعربية أو الإنجليزية وسأعرض لك بطاقتها التعليمية الكاملة مع النطق والنوع وتصريف الأفعال والمترادفات والمضادات والمثال المترجم."
+      ].join("\n")
+    };
+  }
+
+  // Specific Intent A: Verb Conjugation query ("تصريف write", "تصريف الفعل يكتب", "conjugation of go")
+  const isConjugationQuery = /تصريف|conjugat/i.test(rawTrimmed);
+  if (isConjugationQuery) {
+    const term = extractSearchTerm(rawTrimmed);
+    const matched = findWordInLocalData(term) || findWordInLocalData(rawTrimmed);
+    const baseWord = matched ? matched.word : term;
+    const conj = getVerbConjugation(baseWord, matched?.partOfSpeech);
+    if (conj) {
+      const lines = [
+        `تصريف الفعل (${conj.base}):`,
+        formatVerbConjugationText(conj)
+      ];
+      if (matched) {
+        lines.push("");
+        lines.push(`المعنى بالعربية: ${matched.arabic}`);
+        lines.push("مثال في سياق:");
+        lines.push(matched.example);
+        lines.push(`الترجمة: ${matched.exampleArabic}`);
+      }
+      return {
+        text: lines.join("\n"),
+        matchedWord: matched || undefined,
+        conjugation: conj
+      };
+    }
+  }
+
+  // Specific Intent B: Antonyms query ("مضاد happy", "عكس كبير", "antonym of cold")
+  const isAntonymQuery = /مضاد|عكس|antonym|opposite/i.test(rawTrimmed);
+  if (isAntonymQuery) {
+    const term = extractSearchTerm(rawTrimmed);
+    const matched = findWordInLocalData(term) || findWordInLocalData(rawTrimmed);
+    if (matched) {
+      const ants = getCourseAntonyms(matched.word);
+      const lines = [
+        `مضادات كلمة (${matched.word} - ${matched.arabic}) المستهدفة بحدود الدورة:`
+      ];
+      if (ants.length > 0) {
+        ants.forEach((a, idx) => {
+          lines.push(`${idx + 1}. ${a.word} (${a.arabic})`);
+        });
+      } else {
+        lines.push("لا توجد مضادات مباشرة مسجلة لهذه الكلمة ضمن قائمة الـ 3000 كلمة في الدورة.");
+      }
+      return {
+        text: lines.join("\n"),
+        matchedWord: matched,
+        antonyms: ants
+      };
+    }
+  }
+
+  // Specific Intent C: Synonyms query ("مرادف start", "مرادفات كلمة كبير", "synonym of big")
+  const isSynonymQuery = /مرادف|مترادف|synonym/i.test(rawTrimmed);
+  if (isSynonymQuery) {
+    const term = extractSearchTerm(rawTrimmed);
+    const matched = findWordInLocalData(term) || findWordInLocalData(rawTrimmed);
+    if (matched) {
+      const syns = getCourseSynonyms(matched.word);
+      const lines = [
+        `مترادفات كلمة (${matched.word} - ${matched.arabic}) المستهدفة بحدود الدورة:`
+      ];
+      if (syns.length > 0) {
+        syns.forEach((s, idx) => {
+          lines.push(`${idx + 1}. ${s.word} (${s.arabic})`);
+        });
+      } else {
+        lines.push("لا توجد مترادفات مباشرة مسجلة لهذه الكلمة ضمن قائمة الـ 3000 كلمة في الدورة.");
+      }
+      return {
+        text: lines.join("\n"),
+        matchedWord: matched,
+        synonyms: syns
+      };
+    }
   }
 
   // 6. Local dictionary word search (handles English, Arabic, and all spelling variations)
   const matchedWord = findWordInLocalData(userMessage);
   if (matchedWord) {
-    return formatWordCard(matchedWord);
+    const conj = getVerbConjugation(matchedWord.word, matchedWord.partOfSpeech);
+    const syns = getCourseSynonyms(matchedWord.word);
+    const ants = getCourseAntonyms(matchedWord.word);
+    return {
+      text: formatWordCard(matchedWord),
+      matchedWord,
+      conjugation: conj,
+      synonyms: syns,
+      antonyms: ants
+    };
   }
 
   // 7. Clean fallback without any # or * symbols
-  return [
-    "لم يتم العثور على كلمة تطابق هذا البحث في قاعدة بيانات الدورة المحلية (3000 كلمة).",
-    "",
-    "يمكنك تجربة الآتي:",
-    "1. كتابة أي كلمة بالعربية أو الإنجليزية للبحث عنها مباشرة (مثل: سيارة، شاحن، ماء، Book، Car، Charger).",
-    "2. طلب: علمني 3 كلمات جديدة في مستوى A1",
-    "3. طلب: كيف اقول سعيد وحزين بالانجليزي؟",
-    "4. طلب: اعطني نصيحة ذهبية لحفظ كلمات الانجليزية بسهولة"
-  ].join("\n");
+  return {
+    text: [
+      "لم يتم العثور على كلمة تطابق هذا البحث في قاعدة بيانات الدورة المحلية (3000 كلمة).",
+      "",
+      "يمكنك تجربة الآتي:",
+      "1. كتابة أي كلمة بالعربية أو الإنجليزية للبحث عنها مباشرة (مثل: سيارة، شاحن، ماء، Book، Car، Charger).",
+      "2. طلب تصريف أي فعل: تصريف الفعل write أو تصريف go",
+      "3. طلب المضادات أو المترادفات: ما مضاد happy أو مرادف start",
+      "4. طلب: علمني 3 كلمات جديدة في مستوى A1",
+      "5. طلب: كيف اقول سعيد وحزين بالانجليزي؟",
+      "6. طلب: اعطني نصيحة ذهبية لحفظ كلمات الانجليزية بسهولة"
+    ].join("\n")
+  };
+}
+
+/**
+ * Backwards-compatible function returning pure string response.
+ */
+export function getLocalTutorResponse(userMessage: string): string {
+  return getLocalTutorResponseWithData(userMessage).text;
 }
